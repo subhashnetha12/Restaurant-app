@@ -1,0 +1,339 @@
+
+{% extends "./base.html" %}
+
+{% load static %}
+{% block content %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Restaurant</title>
+    <link rel="stylesheet" href="{% static 'super_admin/css/index.css' %}">
+    <link rel="stylesheet" href="{% static 'messages.css' %}">
+    <style>
+      .dataTables_filter {
+          margin-right: 150px;
+      }
+
+      .container-custom{
+            min-width: 1000px;
+            margin: 100px auto auto auto;
+      }
+      
+    </style>
+</head>
+
+<body>
+
+<div class="container-fluid table-container display responsive wrap fade-in">
+
+    <div id="floating-alert-success" class="floating-alert-success">
+        <span id="floating-alert-success-message"></span>
+    </div>
+    <div id="floating-alert-error" class="floating-alert-error">
+        <span id="floating-alert-error-message"></span>
+    </div>
+
+    <div class="d-flex align-items-center position-relative"> <!-- Added position-relative -->
+      <div id="dataTables_filter_container" class="me-2">        
+      </div>
+      <button type="button" class="btn btn-add"  data-bs-toggle="modal" data-bs-target="#AdminModal">
+        Add Restaurant
+      </button>
+    </div>
+  
+      
+    <div class="table-responsive">
+      <table class="table" id="form-data-table">
+        <thead>
+          <tr>          
+            <th scope="col">S.No</th>
+            <th scope="col">Name</th>          
+            <th scope="col">Phone No</th>
+            <th scope="col">Email</th>
+            <th scope="col">City</th>
+            <th scope="col">Postal Code</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+            {% for i in all_rest %}
+              <tr>            
+                  <td>{{ forloop.counter }}</td>    
+                  <td>{{i.name}}</td>
+                  <td>{{i.phone_number}}</td>
+                  <td>{{i.email}}</td>
+                  <td>{{i.city}}</td>
+                  <td>{{i.postal_code}}</td>
+                  <td>
+                    <a href="#" class="btn-edit" data-bs-toggle="modal" data-bs-target="#edit_AdminModal-{{i.id}}">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a href="#" class="btn-delete ms-3" data-href="{% url 'delete_restaurant' i.id %}">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
+                  </td>
+                  <!-- <td>
+                    <div class="dropdown">
+                        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item btn-edit" data-bs-toggle="modal" data-bs-target=""><i class="fas fa-edit"></i> Edit</a></li>
+                            <li><a class="dropdown-item btn-delete" href="#" data-href=""><i class="fas fa-trash-alt"></i> Delete</a></li>
+                        </ul>
+                    </div>
+                  </td> -->
+              </tr> 
+            {% endfor %}           
+        </tbody>
+      </table>
+    </div>
+</div>  
+
+
+<!-- The Modal -->
+<div class="modal fade" id="AdminModal" tabindex="-1" aria-labelledby="AdminModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content container-custom">
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h4 class="modal-title" id="AdminModalLabel">Add Restraurant Form</h4>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+  
+        <!-- Modal Body -->
+        <div class="modal-body">
+          <form action="" method="post" id="AdminForm" action="{% url 'add_restaurant' %}" >
+              {% csrf_token %}
+              <div class="row">
+                  <div class="col-md-12 form-group">
+                    <input type="text" class="form-control" id="name" name="name"  placeholder=" " required>
+                    <label for="name" class="text-label">Restaurant Name</label>
+                  </div>
+                  
+                  <div class="col-md-6 form-group">
+                    <input type="tel" class="form-control"  id="phone_number" name="phone_number"   placeholder=" "  maxlength="10" required>
+                    <label for="phone_number" class="resto-label">Phone No</label>
+                  </div>
+    
+                  <div class="col-md-6 form-group">
+                    <input type="tel" class="form-control"  id="mobile_number" name="mobile_number"   placeholder=" "  maxlength="10" required>
+                    <label for="mobile_number" class="resto-label">Mobile No</label>
+                  </div>
+                
+                  <div class="col-md-6 form-group">
+                      <input type="email" class="form-control" id="email" name="email" placeholder=" " required>
+                      <label for="email" class="resto-label">Email ID</label>
+                  </div>
+    
+                  <div class="col-md-6 form-group">
+                    <input type="text" class="form-control" id="gst_no" name="gst_no" placeholder=" " required>
+                    <label for="gst_no" class="resto-label">GST No</label>
+                  </div>
+    
+                  <div class="col-md-6 form-group">
+                      <textarea type="text" class="form-control" id="address1" name="address1"  placeholder=" " required ></textarea>
+                      <label for="address1" class="resto-label">Address line 1</label>
+                  </div>
+
+                  <div class="col-md-6 form-group">
+                    <textarea type="text" class="form-control" id="address2" name="address2"  placeholder=" "  ></textarea>
+                    <label for="address2" class="resto-label">Address line 2</label>
+                  </div>
+    
+                  <div class="col-md-4 form-group">
+                    <input type="text" class="form-control" id="city" name="city"  maxlength="15" placeholder=" " required>
+                    <label for="city" class="resto-label">City</label>
+                  </div>
+    
+                  <div class="col-md-4 form-group">
+                    <input type="text" class="form-control" id="state" name="state"  maxlength="15" placeholder=" " required>
+                    <label for="state" class="resto-label">State</label>
+                  </div>
+    
+                  <div class="col-md-4 form-group">
+                    <input type="number" class="form-control" id="postal_code" name="postal_code"  maxlength="15" placeholder=" " required>
+                    <label for="postal_code" class="resto-label">Postal Code</label>
+                  </div>
+              </div>
+             
+              <div class="form-buttons">
+                <button class="btn btn-danger" type="button" data-bs-dismiss="modal" aria-label="hidden">Close</button>
+                <button class="btn btn-success" type="submit">Add Restraurant</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+</div>
+    
+{% for i in all_rest %}
+
+  <div class="modal fade" id="edit_AdminModal-{{i.id}}" tabindex="-1" aria-labelledby="edit_AdminModalLabel-{{i.id}}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content container-custom">
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h4 class="modal-title" id="edit_AdminModalLabel-{{i.id}}">Edit Restraurant Form</h4>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="modal-body">
+          <form method="post" id="AdminForm" action="{% url 'edit_restaurant' i.id %}">
+              {% csrf_token %}
+              <div class="row">
+                <div class="col-md-12 form-group">
+                  <input type="text" class="form-control" id="name" name="edit_name" value="{{ i.name }}"  placeholder=" " required>
+                  <label for="name" class="text-label">Restaurant Name</label>
+                </div>
+                
+                <div class="col-md-6 form-group">
+                  <input type="tel" class="form-control"  id="phone_number" name="edit_phone_number" value="{{ i.phone_number }}"  placeholder=" "  maxlength="10" required>
+                  <label for="phone_number" class="resto-label">Phone No</label>
+                </div>
+  
+                <div class="col-md-6 form-group">
+                  <input type="tel" class="form-control"  id="mobile_number" name="edit_mobile_number" value="{{ i.mobile_number }}"  placeholder=" "  maxlength="10" required>
+                  <label for="mobile_number" class="resto-label">Mobile No</label>
+                </div>
+              
+                <div class="col-md-6 form-group">
+                    <input type="email" class="form-control" id="email" name="edit_email" value="{{ i.email }}" placeholder=" " required>
+                    <label for="email" class="resto-label">Email ID</label>
+                </div>
+
+                <div class="col-md-6 form-group">
+                  <input type="text" class="form-control" id="gst_no" name="edit_gst_no" value="{{ i.gst_no }}" placeholder=" " required>
+                  <label for="gst_no" class="resto-label">GST No</label>
+                </div>
+  
+                <div class="col-md-6 form-group">
+                    <textarea type="text" class="form-control" id="address1" name="edit_address1" value=""  placeholder=" " required >{{ i.address1 }}</textarea>
+                    <label for="address1" class="resto-label">Address line 1</label>
+                </div>
+
+                <div class="col-md-6 form-group">
+                  <textarea type="text" class="form-control" id="address2" name="edit_address2" value=""  placeholder=" "  >{{ i.address2 }}</textarea>
+                  <label for="address2" class="resto-label">Address line 2</label>
+                </div>
+  
+                <div class="col-md-4 form-group">
+                  <input type="text" class="form-control" id="city" name="edit_city" value="{{ i.city }}"  maxlength="15" placeholder=" " required>
+                  <label for="city" class="resto-label">City</label>
+                </div>
+
+                <div class="col-md-4 form-group">
+                  <input type="text" class="form-control" id="state" name="edit_state" value="{{ i.state }}" maxlength="15" placeholder=" " required>
+                  <label for="state" class="resto-label">State</label>
+                </div>
+  
+                <div class="col-md-4 form-group">
+                  <input type="number" class="form-control" id="postal_code" name="edit_postal_code" value="{{ i.postal_code }}"  maxlength="15" placeholder=" " required>
+                  <label for="postal_code" class="resto-label">Postal Code</label>
+                </div>
+              </div>
+    
+              <div class="form-buttons">
+                <button class="btn btn-danger" type="button" data-bs-dismiss="modal" aria-label="hidden">Close</button>
+                <button class="btn btn-success" type="submit">Save Changes</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+
+{% endfor %}
+  
+
+    {% if messages %}
+        {% for message in messages %}
+            {% if 'success' in message.tags %}
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    var successAlertElement = document.getElementById('floating-alert-success');
+                    var successMessage = document.getElementById('floating-alert-success-message');
+
+                    successMessage.textContent = "{{ message|safe }}";
+                    successAlertElement.style.display = 'block';
+                    successAlertElement.classList.add('show');
+
+                    setTimeout(function () {
+                        successAlertElement.classList.remove('show');
+                        successAlertElement.style.display = 'none';
+                    }, 3000); // 2 seconds delay for success alert
+                });
+            </script>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {% if messages %}
+        {% for message in messages %}
+            {% if 'error' in message.tags %}
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                var errorAlertElement = document.getElementById('floating-alert-error');
+                var errorMessage = document.getElementById('floating-alert-error-message');
+                errorMessage.textContent = "{{ message|safe }}";
+                errorAlertElement.style.display = 'block';
+                errorAlertElement.classList.add('show');
+
+                setTimeout(function () {
+                    errorAlertElement.classList.remove('show');
+                    errorAlertElement.style.display = 'none';
+                }, 3000); // 2 seconds delay for success alert
+                });                                        
+            </script>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="{% static 'super_admin/js/index.js' %}"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const deleteButtons = document.querySelectorAll('.btn-delete');
+
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault(); 
+                    const deleteUrl = this.getAttribute('data-href'); 
+
+                    // SweetAlert2 confirmation modal
+                    Swal.fire({
+                        title: 'Are you sure,?',
+                        text: "You want delete this Restaurant,This action cannot be undone!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Redirect to the delete URL if confirmed
+                            window.location.href = deleteUrl;
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+
+</body>
+
+</html>
+
+{% endblock content %}
+
+
+
