@@ -65,5 +65,15 @@ urlpatterns = [
 
     path('w_addmore_items/<str:order_no>', w_addmore_items, name='w_addmore_items'),
 
-    path('QR_order', QR_order, name='QR_order')
+    
+    path('landing_page/', landing_page, name='landing_page'),
+
+    path('self_order/', self_order, name='self_order'),
+
+    path('qr_orders/', qr_orders, name='qr_orders'),
+    path('confirm_page/', confirm_page, name='confirm_page'),
+
+    path('generate_order_bill/<str:order_no>/', generate_order_bill, name='generate_order_bill'),
+
+
 ]

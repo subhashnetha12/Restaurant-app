@@ -1068,7 +1068,7 @@ def add_table(request):
         new_table.save(using=db_name)
 
         # Generate QR code linking to place_order with table_no
-        order_url = request.build_absolute_uri(f'/QR_order/?table_no={table_no}')
+        order_url = request.build_absolute_uri(f'/landing_page/?table_no={table_no}')
         qr = qrcode.make(order_url)
         qr_io = BytesIO()
         qr.save(qr_io, format='PNG')
@@ -1416,7 +1416,6 @@ def all_orders(request):
     return render(request, 'Staff/all_orders.html', {'data': data, 'all_order': all_order, 'orders_details':orders_details,'completed_orders':completed_orders,'pdf_records':pdf_records})
       
 
-
 def addmore_items(request, order_no):
     username = request.session.get('username') 
     if not username:
@@ -1655,9 +1654,11 @@ def generate_order_pdf(request, order_no):
                 else:
                     base_price = 0  
 
-                gst_rate = Decimal(menu_item.gst) / Decimal(100)
+                gst_str = menu_item.gst.strip().replace('%', '') 
+                gst_rate = Decimal(gst_str) / Decimal(100)   
                 gst_type = menu_item.gst_type
-                item_tax = 0  
+                item_tax = 0
+
 
                 if gst_type == "Exclusive":
                     item_tax = round(base_price * gst_rate, 2)
@@ -1860,7 +1861,14 @@ def pending_kots(request):
 
                 order_entry = Orders.objects.using(db_name).get(order_no=kot_entry.order_no)
                 if order_entry:
-                    order_entry.status = "Served" if order_entry.order_type == 'Dine-In' else "Ready for Pickup"
+                    
+                    if order_entry.order_type == 'Dine-In':
+                        order_entry.status = "Served"  
+                    elif order_entry.order_type == 'Qr-Dine-In':
+                        order_entry.status = "Completed"  
+                    else:
+                        order_entry.status = "Ready for Pickup"
+
                     order_entry.save(using=db_name)
 
                 messages.success(request, 'The items are Ready to be Served')
@@ -2168,104 +2176,339 @@ def w_addmore_items(request, order_no):
     return render(request, 'Waiter/w_addmore_items.html', context)
 
 
-def QR_order(request):
+import json
+from django.utils.safestring import mark_safe
 
+def self_order(request):
     all_rest = Restaurants.objects.all()
-       
-    for i in all_rest:            
+    db_name = None
+
+    for i in all_rest:
         try:
             db_name = ensure_database_connection(i.DB_name)
-            break  
+            restaurant_name = i.name
+            break
         except Exception as e:
-            print(f"Error in database {db_name}: {e}")             
-                
+            print(f"Error in database {db_name}: {e}")
+            return HttpResponse("Database connection error", status=500)
 
-    tables = Table_list.objects.using(db_name).all() if db_name else None 
-    cat_det = Categories.objects.using(db_name).all() if db_name else None 
-    all_menuitems = MenuItems.objects.using(db_name).all() if db_name else None  
+    table_no = request.GET.get('table_no')
+    username = request.GET.get('username')
+
+    cat_det = Categories.objects.using(db_name).all() if db_name else None
+    all_menuitems = MenuItems.objects.using(db_name).all() if db_name else None
+    menuitems_det = Menuitems_details.objects.using(db_name).all() if db_name else None
+
+    gst_details = {
+        item.name: {
+            'gst_rate': float(item.gst.replace('%', '')) / 100 if item.gst else 0,
+            'gst_type': item.gst_type or 'Exclusive'
+        } for item in all_menuitems
+    }
+
+    menu_details = {}
+    for detail in menuitems_det:
+        item_name = detail.name
+
+        if item_name not in menu_details:
+            menu_details[item_name] = []
+
+        menu_details[item_name].append({
+            'size': detail.size,
+            'table_price': float(detail.table_price),
+        })
+
+    context = {
+        'cat_det': cat_det,
+        'all_menuitems': all_menuitems,
+        'menu_details_json': mark_safe(json.dumps(menu_details)),
+        'gst_details_json': mark_safe(json.dumps(gst_details)),
+        'table_no': table_no,
+        'username': username,
+    }
+
+    return render(request, 'Customer/self_order2.html', context)
+
+
+
+def landing_page(request):
+    all_rest = Restaurants.objects.all()
+    db_name = None
+
+    for i in all_rest:
+        try:
+            db_name = ensure_database_connection(i.DB_name)
+            restaurant_name = i.name
+            break
+        except Exception as e:
+            print(f"Error in database {db_name}: {e}")
+            return HttpResponse("Database connection error", status=500)
+
+    table_no = request.GET.get('table_no') 
+
+    return render(request, 'Customer/landing_page.html', {'table_no':table_no, 'restaurant_name':restaurant_name})
+
+
+import traceback 
+
+def qr_orders(request):
+    table_no = request.GET.get('table_no') 
+    username = request.GET.get('username') 
+
+    if not table_no or not username:
+        messages.error(request, "Missing table number or username.")
+        return redirect(f'/self_order/?table_no={table_no}&username={username}')  
+
+    db_name = None
+    all_rest = Restaurants.objects.all()
+
+    for i in all_rest:
+        try:
+            db_name = ensure_database_connection(i.DB_name)
+            break
+        except Exception as e:
+            print(f"Error in database {db_name}: {e}")
+            return HttpResponse("Database connection error", status=500)
+
+    if not db_name:
+        messages.error(request, "Unable to connect to any restaurant database.")
+        return redirect(f'/self_order/?table_no={table_no}&username={username}')
+
+    cat_det = Categories.objects.using(db_name).all()
+    all_menuitems = MenuItems.objects.using(db_name).all()
     menuitems_det = Menuitems_details.objects.using(db_name).all()
 
-    context = {        
-        'tables': tables, 
-        'cat_det': cat_det, 
-        'all_menuitems': all_menuitems, 
-        'menuitems_det': menuitems_det
+    context = {
+        'cat_det': cat_det,
+        'all_menuitems': all_menuitems,
+        'menuitems_det': menuitems_det,
+        'table_no': table_no,
+        'username': username,
     }
-    
+
     if request.method == "POST":
-        order_no = generate_order_no()  
-        table_no = request.POST.get("table_no") or None
-        total_amount = request.POST.get("totalPrice")
-
-        order_type = request.POST.get("order_type")
-
-        no_of_rows = request.POST.get("no_of_rows")
-
         try:
+            order_no = generate_order_no()
+            total_amount = request.POST.get("totalPrice", "0")
+            no_of_rows = int(request.POST.get("no_of_rows", "0"))
+
             new_order = Orders(
+                username=username,
                 order_no=order_no,
-                order_type=order_type, 
+                order_type='Qr-Dine-In',
                 order_date=timezone.now() + timedelta(hours=5, minutes=30),
                 status='Pending',
-                table_no=table_no if order_type == 'Dine-In' else None,
+                table_no=table_no,
                 total_amount=Decimal(total_amount),
             )
             new_order.save(using=db_name)
 
             kot_no = generate_kot_no()
-
             new_kot = KOT(
                 kot_no=kot_no,
                 order_no=order_no,
-                order_type=order_type, 
-                table_no=table_no if order_type == 'Dine-In' else None,
+                order_type='Qr-Dine-In',
+                table_no=table_no,
                 status='Pending',
                 created_at=timezone.now() + timedelta(hours=5, minutes=30),
             )
-
             new_kot.save(using=db_name)
 
-            # Process Order Items
-            for i in range(1, int(no_of_rows)+1):
+            for i in range(1, no_of_rows + 1):
                 item_name = request.POST.get(f'item_name_{i}')
                 item_size = request.POST.get(f'item_size_{i}')
-                quantity = request.POST.get(f'qty_{i}')
-                price = request.POST.get(f'price_{i}')
+                quantity = request.POST.get(f'qty_{i}', 0)
+                price = request.POST.get(f'price_{i}', 0)
 
-                OrderItems.objects.using(db_name).create(
-                    order_no=order_no,
-                    menu_item=item_name,
-                    size = item_size,
-                    quantity=int(quantity),
-                    price=Decimal(price)
-                )
+                if item_name and item_size and quantity and price:
+                    OrderItems.objects.using(db_name).create(
+                        order_no=order_no,
+                        menu_item=item_name,
+                        size=item_size,
+                        quantity=int(quantity),
+                        price=Decimal(price)
+                    )
 
-                KOTItems.objects.using(db_name).create(
-                    kot_no=kot_no,
-                    order_no=order_no,
-                    order_item=item_name,
-                    size = item_size,
-                    quantity=int(quantity),
-                )                                            
+                    KOTItems.objects.using(db_name).create(
+                        kot_no=kot_no,
+                        order_no=order_no,
+                        order_item=item_name,
+                        size=item_size,
+                        quantity=int(quantity)
+                    )
 
-            if table_no:
-                try:
-                    table = Table_list.objects.using(db_name).get(table_no=table_no)
-                    table.occupied_order_no = order_no
-                    table.status = "Occupied"
-                    table.save(using=db_name)
-                except Table_list.DoesNotExist:
-                    messages.error(request, "Selected table does not exist.")
+            transaction_id = generate_transaction_no()
+            pdf_filename = f"{order_no}_bill.pdf"
 
-            messages.success(request, 'Order placed successfully')
+            bill_pdf.objects.using(db_name).create(
+                order_no=order_no,
+                transaction_id=transaction_id,
+                file_name=pdf_filename,
+                pdf_file=f"bills/{pdf_filename}",
+                datetime=timezone.now() + timedelta(hours=5, minutes=30),
+            )
 
-            if order_type == 'Takeaway':
-                return redirect('takeaway_orders')
-            
-            if order_type == 'Dine-In':
-                return redirect('staff_dashboard')
+            Payments.objects.using(db_name).create(
+                order_no=order_no,
+                payment_method="Cash",
+                payment_status="Completed",
+                transaction_id=transaction_id,
+                total_amount=total_amount
+            )   
+
+            messages.success(request, 'Order placed successfully.')
+            return redirect(f'/confirm_page/?table_no={table_no}&username={username}&order_no={order_no}')
 
         except Exception as e:
-            messages.error(request, 'Error in while placing order: {e}')
+            print("Exception occurred while placing QR order:")
+            print(traceback.format_exc())
+            messages.error(request, f"Error while placing order: {e}")
+            return redirect(f'/self_order/?table_no={table_no}&username={username}')
 
-    return render(request, 'Staff/orders.html', context)
+    return render(request, 'Customer/self_order2.html', context)
+
+def confirm_page(request):
+    all_rest = Restaurants.objects.all()
+    db_name = None
+
+    for i in all_rest:
+        try:
+            db_name = ensure_database_connection(i.DB_name)
+            restaurant_name = i.name
+            break
+        except Exception as e:
+            print(f"Error in database {db_name}: {e}")
+            return HttpResponse("Database connection error", status=500)
+
+    table_no = request.GET.get('table_no') 
+    username = request.GET.get('username')
+    order_no = request.GET.get('order_no')
+
+    return render(request, 'Customer/confirm_page.html', {
+        'table_no': table_no,
+        'username': username,
+        'restaurant_name': restaurant_name,
+        'order_no':order_no,
+    })
+
+
+
+def generate_order_bill(request, order_no):
+
+    all_rest = Restaurants.objects.all()
+    
+    for i in all_rest:
+        try:
+            db_name = ensure_database_connection(i.DB_name)
+            restaurant_name = i.name
+            break
+        except Exception as e:
+            print(f"Error in database {db_name}: {e}")
+            return HttpResponse("Database connection error", status=500)
+
+    try:
+        order = Orders.objects.using(db_name).get(order_no=order_no)
+        order_items = OrderItems.objects.using(db_name).filter(order_no=order_no)
+
+        restaurant_det = Restaurants.objects.get(DB_name=db_name)
+
+        total_tax = 0  
+        taxable_amount = 0  
+
+        for item in order_items:
+            menu_detail = Menuitems_details.objects.using(db_name).filter(name=item.menu_item).first()
+            menu_item = MenuItems.objects.using(db_name).filter(name=item.menu_item).first()
+
+            if menu_detail and menu_item:
+                if order.order_type == "Qr-Dine-In":
+                    base_price = Decimal(menu_detail.table_price) 
+
+                gst_str = menu_item.gst.strip().replace('%', '') 
+                gst_rate = Decimal(gst_str) / Decimal(100)   
+                gst_type = menu_item.gst_type
+                item_tax = 0 
+
+                if gst_type == "Exclusive":
+                    item_tax = round(base_price * gst_rate, 2)
+                    actual_price = base_price * item.quantity  
+                    item.base_price = base_price  
+
+                elif gst_type == "Inclusive":
+                    base_price_without_tax = round((base_price / (1 + gst_rate)), 2)
+                    item_tax = round(base_price - base_price_without_tax, 2)
+                    actual_price = base_price_without_tax * item.quantity  
+                    item.base_price = base_price_without_tax  
+
+                total_tax += item_tax * item.quantity  
+                taxable_amount += actual_price  
+
+                item.tax_amount = item_tax
+                item.actual_price = actual_price  
+
+        cgst = total_tax / 2
+        sgst = total_tax / 2
+        order_total_amount = taxable_amount + total_tax  
+        order.amount_in_words = convert_amount_to_words(order_total_amount)
+
+
+        template_path = 'Customer/bill_view.html'
+        context = {
+            'order': order,
+            'order_items': order_items,
+            'restaurant_name': restaurant_name,
+            'total_tax': total_tax,
+            'cgst': cgst,
+            'sgst': sgst,
+            'taxable_amount': taxable_amount,
+            'order_total_amount': order_total_amount,
+            'item_tax': item_tax,
+        }
+
+        max_height_per_item = 30  
+        base_height = 200  
+        order_item_count = order_items.count()
+        total_height = base_height + (order_item_count * max_height_per_item)
+
+        if total_height < 600:
+            total_height = 600
+
+        css_override = f"""
+            @page {{
+                size: 80mm {total_height}pt;
+                margin: 0;
+            }}
+        """
+
+        template = get_template(template_path)
+        html = template.render(context)
+        html = f"<style>{css_override}</style>" + html
+
+        pdf_buffer = io.BytesIO()
+        
+        pisa_status = pisa.CreatePDF(html, dest=pdf_buffer, encoding='UTF-8')
+
+        if pisa_status.err:
+            return HttpResponse("Error generating PDF", status=500)
+
+        pdf_buffer.seek(0)
+
+        pdf_filename = f"{order_no}.pdf"
+        pdf_path = os.path.join(settings.MEDIA_ROOT, "bills", pdf_filename)
+
+        if not os.path.exists(pdf_path):
+            with open(pdf_path, "wb") as f:
+                f.write(pdf_buffer.getvalue())
+
+    
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{pdf_filename}"'  
+
+        return response
+
+
+    except Orders.DoesNotExist:
+        return HttpResponse("Order not found", status=404)
+    
+
+
+
