@@ -1067,7 +1067,6 @@ def add_table(request):
         )
         new_table.save(using=db_name)
 
-        # Generate QR code linking to place_order with table_no
         order_url = request.build_absolute_uri(f'/landing_page/?table_no={table_no}')
         qr = qrcode.make(order_url)
         qr_io = BytesIO()
