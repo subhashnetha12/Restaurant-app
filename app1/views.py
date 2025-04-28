@@ -32,6 +32,9 @@ from io import BytesIO
 from django.core.files.base import ContentFile
 
 
+from django.utils.timezone import now
+
+
 def ensure_database_connection(db_name):
     """
     Ensure that the given database exists, is connected, and has all required tables for `app2`.
@@ -72,7 +75,7 @@ def ensure_database_connection(db_name):
         print(f"Error applying migrations to database {db_name}: {e}")
         raise
 
-    return db_name  # Return the database name for later use
+    return db_name  
 
 
 def SuperAdmin_Dashboard(request):
@@ -1067,7 +1070,8 @@ def add_table(request):
         )
         new_table.save(using=db_name)
 
-        order_url = request.build_absolute_uri(f'/landing_page/?table_no={table_no}')
+        order_url = f"{settings.APP_BASE_URL}/landing_page/?table_no={table_no}"
+
         qr = qrcode.make(order_url)
         qr_io = BytesIO()
         qr.save(qr_io, format='PNG')
@@ -1079,6 +1083,7 @@ def add_table(request):
         return redirect('add_table')
 
     return render(request, 'Staff/add_table.html', {'data': data, 'tables': tables})
+
 
 def view_qr_code(request, id):
     username = request.session.get('username')
@@ -1163,14 +1168,17 @@ def delete_table(request, id):
     messages.success(request, 'Table deleted successfully.')
     return redirect('add_table')
 
+
 def generate_order_no():
     now = timezone.now() + timedelta(hours=5, minutes=30) 
     print('Now', now)
     return f"ORD-{now.strftime('%Y%m%d-%H%M%S')}" 
 
+
 def generate_kot_no():
     now = timezone.now() + timedelta(hours=5, minutes=30) 
     return f"KOT-{now.strftime('%Y%m%d-%H%M%S')}" 
+
 
 def place_order(request):
     username = request.session.get('username') 
@@ -1281,6 +1289,7 @@ def place_order(request):
 
     return render(request, 'Staff/orders.html', context)
 
+
 def cancel_order(request, order_no):
     username = request.session.get('username') 
     if not username:
@@ -1319,6 +1328,7 @@ def cancel_order(request, order_no):
 
     messages.success(request, 'Order cancelled successfully.')
     return redirect('all_orders')
+
 
 def takeaway_orders(request):
     username = request.session.get('username') 
@@ -1364,7 +1374,6 @@ def takeaway_orders(request):
 
     return render(request, 'Staff/takeaway_orders.html', {'data':data, 'takeaway_orders': takeaway_orders,'takeaway_orders_details':takeaway_orders_details, 'pdf_records':pdf_records})
 
-from django.utils.timezone import now
 
 def all_orders(request):
     username = request.session.get('username') 
@@ -1413,7 +1422,7 @@ def all_orders(request):
     pdf_records = bill_pdf.objects.using(db_name).all()
 
     return render(request, 'Staff/all_orders.html', {'data': data, 'all_order': all_order, 'orders_details':orders_details,'completed_orders':completed_orders,'pdf_records':pdf_records})
-      
+
 
 def addmore_items(request, order_no):
     username = request.session.get('username') 
@@ -1542,7 +1551,7 @@ def addmore_items(request, order_no):
     }
 
     return render(request, 'Staff/addmore_items.html', context)
-    
+
 
 def kot_management(request):
     username = request.session.get('username') 
@@ -1825,6 +1834,7 @@ def bill_generate(request):
         pdf_records = pdf_records.filter(order_no=order_no)
 
     return render(request, 'staff/bill_page.html', {'data': data,'order': order,'order_items': order_items,'completed_orders': completed_orders,'pdf_records': pdf_records})
+
 
 def pending_kots(request):
     username = request.session.get('username') 
@@ -2229,7 +2239,6 @@ def self_order(request):
     return render(request, 'Customer/self_order2.html', context)
 
 
-
 def landing_page(request):
     all_rest = Restaurants.objects.all()
     db_name = None
@@ -2366,6 +2375,7 @@ def qr_orders(request):
 
     return render(request, 'Customer/self_order2.html', context)
 
+
 def confirm_page(request):
     all_rest = Restaurants.objects.all()
     db_name = None
@@ -2389,7 +2399,6 @@ def confirm_page(request):
         'restaurant_name': restaurant_name,
         'order_no':order_no,
     })
-
 
 
 def generate_order_bill(request, order_no):
