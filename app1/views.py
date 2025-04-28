@@ -2185,6 +2185,24 @@ def w_addmore_items(request, order_no):
     return render(request, 'Waiter/w_addmore_items.html', context)
 
 
+
+def landing_page(request):
+    all_rest = Restaurants.objects.all()
+    db_name = None
+
+    for i in all_rest:
+        try:
+            db_name = ensure_database_connection(i.DB_name)
+            restaurant_name = i.name
+            break
+        except Exception as e:
+            print(f"Error in database {db_name}: {e}")
+            return HttpResponse("Database connection error", status=500)
+
+    table_no = request.GET.get('table_no') 
+
+    return render(request, 'Customer/landing_page.html', {'table_no':table_no, 'restaurant_name':restaurant_name})
+
 import json
 from django.utils.safestring import mark_safe
 
@@ -2236,26 +2254,7 @@ def self_order(request):
         'username': username,
     }
 
-    return render(request, 'Customer/self_order2.html', context)
-
-
-def landing_page(request):
-    all_rest = Restaurants.objects.all()
-    db_name = None
-
-    for i in all_rest:
-        try:
-            db_name = ensure_database_connection(i.DB_name)
-            restaurant_name = i.name
-            break
-        except Exception as e:
-            print(f"Error in database {db_name}: {e}")
-            return HttpResponse("Database connection error", status=500)
-
-    table_no = request.GET.get('table_no') 
-
-    return render(request, 'Customer/landing_page.html', {'table_no':table_no, 'restaurant_name':restaurant_name})
-
+    return render(request, 'Customer/self_order.html', context)
 
 import traceback 
 
@@ -2373,7 +2372,7 @@ def qr_orders(request):
             messages.error(request, f"Error while placing order: {e}")
             return redirect(f'/self_order/?table_no={table_no}&username={username}')
 
-    return render(request, 'Customer/self_order2.html', context)
+    return render(request, 'Customer/self_order.html', context)
 
 
 def confirm_page(request):
