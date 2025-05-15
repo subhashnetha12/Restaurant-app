@@ -2452,7 +2452,7 @@ def generate_order_bill(request, order_no):
                 item.tax_amount = item_tax
                 item.actual_price = actual_price  
 
-        cgst = total_tax / 2
+        cgst = total_tax / 2    
         sgst = total_tax / 2
         order_total_amount = taxable_amount + total_tax  
         order.amount_in_words = convert_amount_to_words(order_total_amount)
@@ -2518,4 +2518,91 @@ def generate_order_bill(request, order_no):
     
 
 
+def online_place_order(request):
+    username = request.session.get('username') 
+    if not username:
+        return redirect('signin')     
+    all_rest = Restaurants.objects.all()
 
+    if username:         
+        for i in all_rest:            
+            try:
+                db_name = ensure_database_connection(i.DB_name)
+                data = Staff.objects.using(db_name).get(username=username)
+                break  
+            except Exception as e:
+                print(f"Error in database {db_name}: {e}")             
+    else:
+        data = None             
+
+    cat_det = Categories.objects.using(db_name).all() if db_name else None 
+    all_menuitems = MenuItems.objects.using(db_name).all() if db_name else None  
+    menuitems_det = Menuitems_details.objects.using(db_name).all()
+
+    context = {           
+        'data': data, 
+        'cat_det': cat_det, 
+        'all_menuitems': all_menuitems, 
+        'menuitems_det': menuitems_det
+    }
+    
+    if request.method == "POST":
+        order_no = generate_order_no()  
+        total_amount = request.POST.get("totalPrice")
+
+        order_type = request.POST.get("order_type")
+
+        no_of_rows = request.POST.get("no_of_rows")
+
+        try:
+            new_order = OnlineOrder(
+                username=username,
+                order_no=order_no,
+                order_type=order_type, 
+                order_date=timezone.now() + timedelta(hours=5, minutes=30),
+                status='Pending',
+                total_amount=Decimal(total_amount),
+            )
+            new_order.save(using=db_name)
+
+            kot_no = generate_kot_no()
+
+            new_kot = KOT(
+                kot_no=kot_no,
+                order_no=order_no,
+                order_type=order_type, 
+                status='Pending',
+                created_at=timezone.now() + timedelta(hours=5, minutes=30),
+            )
+
+            new_kot.save(using=db_name)
+
+            # Process Order Items
+            for i in range(1, int(no_of_rows)+1):
+                item_name = request.POST.get(f'item_name_{i}')
+                item_size = request.POST.get(f'item_size_{i}')
+                quantity = request.POST.get(f'qty_{i}')
+                price = request.POST.get(f'price_{i}')
+
+                Online_OrderItems.objects.using(db_name).create(
+                    order_no=order_no,
+                    menu_item=item_name,
+                    size = item_size,
+                    quantity=int(quantity),
+                    price=Decimal(price)
+                )
+
+                KOTItems.objects.using(db_name).create(
+                    kot_no=kot_no,
+                    order_no=order_no,
+                    order_item=item_name,
+                    size = item_size,
+                    quantity=int(quantity),
+                )                                            
+
+            messages.success(request, 'Order placed successfully')
+
+        except Exception as e:
+            messages.error(request, 'Error in while placing order: {e}')
+
+    return render(request, 'Staff/orders.html', context)

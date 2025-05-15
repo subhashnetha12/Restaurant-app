@@ -237,3 +237,40 @@ class Inventory(models.Model):
 
 
 
+class OnlineOrder(models.Model):
+    STATUS_CHOICES = [
+        ('Placed', 'Placed'),
+        ('Confirmed', 'Confirmed'),
+        ('Preparing', 'Preparing'),
+        ('Ready for Pickup', 'Ready for Pickup'),
+        ('Out for Delivery', 'Out for Delivery'),
+        ('Delivered', 'Delivered'),
+        ('Cancelled', 'Cancelled'),
+    ]
+
+    username = models.CharField(max_length=100)
+    order_no = models.CharField(max_length=40)
+    order_date = models.DateTimeField()
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES)
+    table_no = models.CharField(max_length=50, null=True, blank=True)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    address = models.TextField(blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    postal_code = models.CharField(max_length=20, blank=True, null=True)
+
+    class Meta:
+        ordering = ['-order_date']
+
+    def __str__(self):
+        return f"Order {self.order_no} by {self.username}"
+
+        
+
+class Online_OrderItems(models.Model):
+    order_no = models.CharField(max_length=40)
+    menu_item = models.CharField(max_length=100)
+    size = models.CharField(max_length=150)     
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    def __str__(self):
+        return self.order_no
